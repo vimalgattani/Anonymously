@@ -1,4 +1,6 @@
 import { getUserIfExists, query } from '../db/index.js'
+import bcrypt from 'bcrypt';
+
 
 const signUp = async (req, res) => {
     const user = req.body.user
@@ -10,7 +12,8 @@ const signUp = async (req, res) => {
         res.status(409)
         res.send(`User with username: ${user} already exists.`)
     } else {
-        query('INSERT INTO users(name, password) VALUES ($1, $2) RETURNING *', [user, password], (error, results) => {
+        const hashedPassword = await bcrypt.hash(password, 17);
+        query('INSERT INTO users(name, password) VALUES ($1, $2) RETURNING *', [user, hashedPassword], (error, results) => {
             if(error){
                 throw error
             }
@@ -24,7 +27,11 @@ const signIn = async (req, res) => {
     const password = req.body.password
     let userObj = await getUserIfExists(user)
 
-    if(userObj.exists && userObj.user.password === password) {  
+    if(userObj.exists) {  
+        const passwordCheck = await bcrypt.compare(password, userObj.user.password);
+        if (!passwordCheck) {
+            res.status(400).json({ error: "Invalid Password." });
+        }
         query('SELECT message FROM messages WHERE user_id = $1 ORDER BY record_time DESC', [userObj.user.id], (error, results) => {
             if(error){
                 throw error
