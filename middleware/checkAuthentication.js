@@ -22,4 +22,6 @@ const redirector = (req, res, next) => {
     }
 }
 
+
+
 export {redirector}
